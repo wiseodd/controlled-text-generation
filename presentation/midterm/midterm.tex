@@ -16,11 +16,13 @@
 
     \usepackage[english]{babel}
     \usepackage[utf8x]{inputenc}
+    \usepackage{graphicx}
+    \graphicspath{ {imgs/} }
 
-    \title[Your Short Title]{Your Presentation}
-    \author{You}
-    \institute{Where You're From}
-    \date{Date of Presentation}
+    \title[Generative Models for Text]{Generative Models for Text}
+    \author{Agustinus Kristiadi}
+    \institute{University of Bonn}
+    \date{12 Dec 2017}
 
     \begin{document}
 
@@ -29,66 +31,108 @@
     \end{frame}
 
     % Uncomment these lines for an automatically generated outline.
-    %\begin{frame}{Outline}
-    %  \tableofcontents
-    %\end{frame}
+    \begin{frame}{Outline}
+     \tableofcontents
+    \end{frame}
+
 
     \section{Introduction}
 
-    \begin{frame}{Introduction}
+    \subsection{Quick Introduction to Generative Models}
+
+    \begin{frame}{Generative Model}
 
     \begin{itemize}
-      \item Your introduction goes here!
-      \item Use \texttt{itemize} to organize your main points.
+        \item Recall Bayes' Rule:
+        $$P(\theta \vert X) = \frac{P(X \vert \theta) P(\theta)}{P(X)}$$
+        \item Generative Model: modeling $P(X)$.
+        \item Important models: GAN, VAE.
+        \item In our work we will be based on VAE.
     \end{itemize}
-
-    \vskip 1cm
-
-    \begin{block}{Examples}
-    Some examples of commonly used commands and features are included, to help you get started.
-    \end{block}
 
     \end{frame}
 
-    \section{Some \LaTeX{} Examples}
+    \begin{frame}{Autoencoder (AE)}
 
-    \subsection{Tables and Figures}
+      \begin{itemize}
+          \item Neural nets that take input $X$ and to reconstruct it, i.e. outputting $\hat{X}$
 
-    \begin{frame}{Tables and Figures}
+      \end{itemize}
 
-    \begin{itemize}
-    \item Use \texttt{tabular} for basic tables --- see Table~\ref{tab:widgets}, for example.
-    \item You can upload a figure (JPEG, PNG or PDF) using the files menu.
-    \item To include it in your document, use the \texttt{includegraphics} command (see the comment below in the source code).
-    \end{itemize}
-
-    % Commands to include a figure:
-    %\begin{figure}
-    %\includegraphics[width=\textwidth]{your-figure's-file-name}
-    %\caption{\label{fig:your-figure}Caption goes here.}
-    %\end{figure}
-
-    \begin{table}
-    \centering
-    \begin{tabular}{l|r}
-    Item & Quantity \\\hline
-    Widgets & 42 \\
-    Gadgets & 13
-    \end{tabular}
-    \caption{\label{tab:widgets}An example table.}
-    \end{table}
+      % Image of trivial AE
+      % Example image of input and reconstruction
 
     \end{frame}
 
-    \subsection{Mathematics}
+    \begin{frame}{Variational Autoencoder (VAE)}
 
-    \begin{frame}{Readable Mathematics}
+        \begin{itemize}
+            \item Constraint the hidden layer into some distribution (of latent variable).
+            \item Force the hidden layer to match our prior distribution, e.g. standard normal.
+            \item Objective: maximize (reconstruction + hidden unit regularization)
 
-    Let $X_1, X_2, \ldots, X_n$ be a sequence of independent and identically distributed random variables with $\text{E}[X_i] = \mu$ and $\text{Var}[X_i] = \sigma^2 < \infty$, and let
-    $$S_n = \frac{X_1 + X_2 + \cdots + X_n}{n}
-          = \frac{1}{n}\sum_{i}^{n} X_i$$
-    denote their mean. Then as $n$ approaches infinity, the random variables $\sqrt{n}(S_n - \mu)$ converge in distribution to a normal $\mathcal{N}(0, \sigma^2)$.
+            $$\max_{\theta} \mathcal{L}(\theta;X) = \mathbb{E}_{q(z \vert X)}[\log p(X \vert z)] - D_{KL}[q(z \vert X) \Vert p(z)]$$
 
+            \item In practice: $q(z \vert X) = E(X)$ and $p(X \vert z) = D(z)$, where $E(X)$ and $D(z)$ are neural nets.
+        \end{itemize}
+
+        % Image of trivial AE
+        % Example image of input and reconstruction
+
+    \end{frame}
+
+    \begin{frame}{Benefits of VAE}
+        \begin{itemize}
+            \item Latent variables nicely contained in $N(0, I)$ $\implies$ can be nicely interpolated.
+            \item Generating data $X$ becomes possible: $z \sim N(0, I); X = D(z)$.
+        \end{itemize}
+
+        % Some pictures
+    \end{frame}
+
+    \section{Controlled Generation of Text}
+
+    \subsection{Introduction}
+
+    \begin{frame}{Toward Controlled Generation of Text (Hu, 2017)}
+
+        \begin{itemize}
+            \item Extending VAE model
+            \begin{itemize}
+                \item Use LSTM-RNNs as encoder and decoder.
+                \item Add another neural net to enforce conditional attribute constraint.
+            \end{itemize}
+            \item Enables us to condition text generation. \\E.g. generate text with past tense and positive sentiment: \\"this was spectacular , i saw it in theaters twice".
+        \end{itemize}
+
+    \end{frame}
+
+    \begin{frame}{Architecture}
+        % Image from paper
+        \begin{itemize}
+            \item We are optimizing:
+            $$\min_{\theta_G, \theta_E} \mathcal{L}_{VAE} + \lambda \mathcal{L}_{attr}$$
+            $$\min_{\theta_{D}} \mathcal{L}_D = \mathcal{L}_s + \lambda_u \mathcal{L}_u $$
+            where $\mathcal{L}_{attr}$ is loss function for conditional attribute constraint.
+        \end{itemize}
+    \end{frame}
+
+    \begin{frame}{Algorithm}
+        % Image from paper
+    \end{frame}
+
+    \begin{frame}{Example Expected Results}
+        % Take from paper table. 3 and 4
+    \end{frame}
+
+    \section{Conclusion}
+
+    \begin{frame}{Conclusion}
+        \begin{itemize}
+            \item VAE is a useful modification of original autoencoder.
+            \item We can extend VAE to also learn conditional constraint.
+            \item We can generate text with desired properties based on the conditional constraint.
+        \end{itemize}
     \end{frame}
 
     \end{document}
