@@ -19,10 +19,10 @@
     \usepackage{graphicx}
     \graphicspath{ {imgs/} }
 
-    \title[Generative Models for Text]{Generative Models for Text}
-    \author{Agustinus Kristiadi}
+    \title[Toward Controlled Generation of Text]{Toward Controlled Generation of Text}
+    \author{Agustinus Kristiadi & Yonathan Santosa}
     \institute{University of Bonn}
-    \date{12 Dec 2017}
+    \date{21 Dec 2017}
 
     \begin{document}
 
@@ -59,8 +59,7 @@
 
       \end{itemize}
 
-      % Image of trivial AE
-      % Example image of input and reconstruction
+      \includegraphics{ae}
 
     \end{frame}
 
@@ -76,18 +75,15 @@
             \item In practice: $q(z \vert X) = E(X)$ and $p(X \vert z) = D(z)$, where $E(X)$ and $D(z)$ are neural nets.
         \end{itemize}
 
-        % Image of trivial AE
-        % Example image of input and reconstruction
-
     \end{frame}
 
     \begin{frame}{Benefits of VAE}
         \begin{itemize}
-            \item Latent variables nicely contained in $N(0, I)$ $\implies$ can be nicely interpolated.
-            \item Generating data $X$ becomes possible: $z \sim N(0, I); X = D(z)$.
+            \item Latent variables nicely contained in $\mathcal{N}(0, I)$ $\implies$ can be nicely interpolated.
+            \item Generating data $X$ becomes possible: $z \sim \mathcal{N}(0, I); X = D(z)$.
         \end{itemize}
 
-        % Some pictures
+        \includegraphics{vaeinterpolation}
     \end{frame}
 
     \section{Controlled Generation of Text}
@@ -108,7 +104,7 @@
     \end{frame}
 
     \begin{frame}{Architecture}
-        % Image from paper
+        \includegraphics{architecture}
         \begin{itemize}
             \item We are optimizing:
             $$\min_{\theta_G, \theta_E} \mathcal{L}_{VAE} + \lambda \mathcal{L}_{attr}$$
@@ -118,11 +114,11 @@
     \end{frame}
 
     \begin{frame}{Algorithm}
-        % Image from paper
+        \includegraphics{algorithm}
     \end{frame}
 
     \begin{frame}{Example Expected Results}
-        % Take from paper table. 3 and 4
+        \includegraphics{example}
     \end{frame}
 
     \section{Conclusion}
