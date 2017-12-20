@@ -20,7 +20,7 @@
     \graphicspath{ {imgs/} }
 
     \title[Toward Controlled Generation of Text]{Toward Controlled Generation of Text}
-    \author{Agustinus Kristiadi & Yonathan Santosa}
+    \author{Agustinus Kristiadi and Yonathan Santosa}
     \institute{University of Bonn}
     \date{21 Dec 2017}
 
@@ -52,6 +52,8 @@
 
     \end{frame}
 
+    \subsection{Autoencoder}
+
     \begin{frame}{Autoencoder (AE)}
 
       \begin{itemize}
@@ -59,11 +61,16 @@
 
       \end{itemize}
 
-      \includegraphics{ae}
+      \begin{figure}
+        \includegraphics[width=\textwidth]{ae}
+        \caption{\label{fig:ae}From: https://blog.keras.io}
+        \end{figure}
 
     \end{frame}
 
-    \begin{frame}{Variational Autoencoder (VAE)}
+    \subsection{Variational Autoencoder}
+
+    \begin{frame}{Variational Autoencoder (VAE) \footnote{Kingma and Welling, 2013}}
 
         \begin{itemize}
             \item Constraint the hidden layer into some distribution (of latent variable).
@@ -72,18 +79,21 @@
 
             $$\max_{\theta} \mathcal{L}(\theta;X) = \mathbb{E}_{q(z \vert X)}[\log p(X \vert z)] - D_{KL}[q(z \vert X) \Vert p(z)]$$
 
-            \item In practice: $q(z \vert X) = E(X)$ and $p(X \vert z) = D(z)$, where $E(X)$ and $D(z)$ are neural nets.
+            \item In practice: $q(z \vert X)$ and $p(X \vert z)$, are neural nets.
         \end{itemize}
 
     \end{frame}
 
     \begin{frame}{Benefits of VAE}
         \begin{itemize}
-            \item Latent variables nicely contained in $\mathcal{N}(0, I)$ $\implies$ can be nicely interpolated.
-            \item Generating data $X$ becomes possible: $z \sim \mathcal{N}(0, I); X = D(z)$.
+            \item Latent variables nicely contained in $\mathcal{N}(0, I)$.
+            \item Generating data $X$ becomes possible: $z \sim \mathcal{N}(0, I); X \sim P(X \vert z)$.
         \end{itemize}
 
-        \includegraphics{vaeinterpolation}
+        \begin{figure}
+            \includegraphics[width=0.5\textwidth]{vaeinterpolation}
+            \caption{\label{fig:interpolation} By interpolating $z$ and transform it with $P(X \vert z)$ we can interpolate data. From: https://ermongroup.github.io/cs228-notes.}
+        \end{figure}
     \end{frame}
 
     \section{Controlled Generation of Text}
@@ -103,8 +113,14 @@
 
     \end{frame}
 
+    \subsection{Algorithm}
+
     \begin{frame}{Architecture}
-        \includegraphics{architecture}
+        \begin{figure}
+            \includegraphics[width=0.8\textwidth]{architecture}
+            \caption{\label{fig:arch}Hu, et al., 2017}
+        \end{figure}
+
         \begin{itemize}
             \item We are optimizing:
             $$\min_{\theta_G, \theta_E} \mathcal{L}_{VAE} + \lambda \mathcal{L}_{attr}$$
@@ -114,11 +130,19 @@
     \end{frame}
 
     \begin{frame}{Algorithm}
-        \includegraphics{algorithm}
+        \begin{figure}
+            \includegraphics[width=\textwidth]{Algorithm}
+            \caption{\label{fig:algo}Hu, et al., 2017}
+        \end{figure}
     \end{frame}
 
+    \subsection{Expected Results}
+
     \begin{frame}{Example Expected Results}
-        \includegraphics{example}
+        \begin{figure}
+            \includegraphics[width=\textwidth]{example}
+            \caption{\label{fig:example}Hu, et al., 2017}
+        \end{figure}
     \end{frame}
 
     \section{Conclusion}
@@ -131,5 +155,12 @@
         \end{itemize}
     \end{frame}
 
-    \end{document}
+    \begin{frame}{References}
 
+        \begin{itemize}
+            \item Kingma, Diederik P., and Max Welling. "Auto-encoding variational bayes." arXiv preprint arXiv:1312.6114 (2013). \href{https://arxiv.org/abs/1312.6114}{[pdf]}
+            \item Hu, Zhiting, et al. "Toward controlled generation of text.” ICML 2017. \href{http://proceedings.mlr.press/v70/hu17e/hu17e.pdf}{[pdf]}
+        \end{itemize}
+    \end{frame}
+
+\end{document}
