@@ -52,22 +52,18 @@ class RNN_VAE(nn.Module):
         self.decoder_fc = nn.Linear(z_dim+c_dim, n_vocab)
 
         # Discriminator
-        # TODO: Change this to Kim, 2014
-        self.cnn = nn.Sequential(
-            nn.Conv2d(1, 128, 5),
-            nn.ReLU(),
-            nn.BatchNorm2d(128),
-            nn.MaxPool2d(2, 2),
-            nn.Conv2d(128, 256, 3),
-            nn.ReLU(),
-            nn.BatchNorm2d(256),
-            nn.AdaptiveAvgPool2d(1)
+        self.conv3 = nn.Conv2d(1, 100, (3, self.emb_dim))
+        self.conv4 = nn.Conv2d(1, 100, (4, self.emb_dim))
+        self.conv5 = nn.Conv2d(1, 100, (5, self.emb_dim))
+
+        self.disc_fc = nn.Sequential(
+            nn.Dropout(0.5),
+            nn.Linear(300, 2)
         )
 
-        self.discriminator = nn.Sequential(
-            nn.Dropout(0.5),
-            nn.Linear(256, 2)
-        )
+        self.discriminator = nn.ModuleList([
+            self.conv3, self.conv4, self.conv5, self.disc_fc
+        ])
 
         # Group params
         self.encoder_params = chain(
@@ -84,10 +80,7 @@ class RNN_VAE(nn.Module):
         )
         self.vae_params = filter(lambda p: p.requires_grad, self.vae_params)
 
-        self.discriminator_params = chain(
-            self.cnn.parameters(), self.discriminator.parameters()
-        )
-        self.discriminator_params = filter(lambda p: p.requires_grad, self.discriminator_params)
+        self.discriminator_params = filter(lambda p: p.requires_grad, self.discriminator.parameters())
 
         if self.gpu:
             self.cuda()
@@ -158,10 +151,18 @@ class RNN_VAE(nn.Module):
         """
         inputs = inputs.unsqueeze(1)  # mbsize x 1 x seq_len x emb_dim
 
-        features = self.cnn(inputs)
-        features = features.view(features.size(0), -1)
+        x3 = F.relu(self.conv3(inputs)).squeeze()
+        x4 = F.relu(self.conv4(inputs)).squeeze()
+        x5 = F.relu(self.conv5(inputs)).squeeze()
 
-        y = self.discriminator(features)
+        # Max-over-time-pool
+        x3 = F.max_pool1d(x3, x3.size(2)).squeeze()
+        x4 = F.max_pool1d(x4, x4.size(2)).squeeze()
+        x5 = F.max_pool1d(x5, x5.size(2)).squeeze()
+
+        x = torch.cat([x3, x4, x5], dim=1)
+
+        y = self.disc_fc(x)
 
         return y
 

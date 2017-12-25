@@ -47,7 +47,7 @@ dataset = SST_Dataset(mbsize)
 
 model = RNN_VAE(
     dataset.n_vocab, h_dim, z_dim, c_dim, p_word_dropout=0.3,
-    pretrained_embeddings=dataset.get_vocab_vectors(), freeze_embeddings=False,
+    pretrained_embeddings=dataset.get_vocab_vectors(), freeze_embeddings=True,
     gpu=args.gpu
 )
 
@@ -161,6 +161,8 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         if args.save:
             save_model()
+
+        exit(0)
 
     if args.save:
         save_model()

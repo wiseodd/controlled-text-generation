@@ -100,5 +100,7 @@ if __name__ == '__main__':
         if args.save:
             save_model()
 
+        exit(0)
+
     if args.save:
         save_model()
