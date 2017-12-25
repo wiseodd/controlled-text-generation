@@ -9,7 +9,7 @@ class SST_Dataset:
         self.LABEL = data.Field(sequential=False, unk_token=None)
 
         # Only take sentences with length <= 15
-        f = lambda ex: len(ex.text) <= 15
+        f = lambda ex: len(ex.text) <= 15 and ex.label != 'neutral'
 
         train, val, test = datasets.SST.splits(
             self.TEXT, self.LABEL, fine_grained=False, train_subtrees=False,
