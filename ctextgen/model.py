@@ -52,6 +52,7 @@ class RNN_VAE(nn.Module):
         self.decoder_fc = nn.Linear(z_dim+c_dim, n_vocab)
 
         # Discriminator
+        # TODO: Change this to Kim, 2014
         self.cnn = nn.Sequential(
             nn.Conv2d(1, 128, 5),
             nn.ReLU(),

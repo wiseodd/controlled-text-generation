@@ -21,17 +21,19 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument('--gpu', default=False, action='store_true',
                     help='whether to run in the GPU')
+parser.add_argument('--save', default=False, action='store_true',
+                    help='whether to save model or not')
 
 args = parser.parse_args()
 
 
-mbsize = 10
+mbsize = 20
 z_dim = 100
 h_dim = 128
 lr = 1e-4
 lr_decay_every = 1000000
 n_iter = 50000
-log_interval = 10
+log_interval = 50
 z_dim = h_dim
 c_dim = 2
 
@@ -42,8 +44,6 @@ lambda_z = 0.1
 lambda_u = 0.1
 
 dataset = SST_Dataset(mbsize)
-# dataset = WikiText_Dataset()
-# dataset = IMDB_Dataset()
 
 model = RNN_VAE(
     dataset.n_vocab, h_dim, z_dim, c_dim, p_word_dropout=0.3,
@@ -132,27 +132,19 @@ def main():
         trainer_E.zero_grad()
 
         if it % log_interval == 0:
-            # Reconstruct first sentence in current batch
-            orig_sentence = inputs[:, 0].unsqueeze(1)
-
-            z_mean, z_logvar = model.forward_encoder(orig_sentence)
-            # z = model.sample_z(z_mean, z_logvar)
+            z = model.sample_z_prior(1)
             c = model.sample_c(1)
 
-            sample_idxs = model.sample_sentence(z_mean, c)
+            sample_idxs = model.sample_sentence(z, c)
             sample_sent = dataset.idxs2sentence(sample_idxs)
 
             print('Iter-{}; loss_D: {:.4f}; loss_G: {:.4f}'
                   .format(it, float(loss_D), float(loss_G)))
 
-            orig_idxs = orig_sentence.squeeze().data
-            orig_idxs = orig_idxs.cpu() if args.gpu else orig_idxs
-
             _, c_idx = torch.max(c, dim=1)
 
-            print('c = {}'.format(int(c_idx)))
-            print('Original: "{}"'.format(dataset.idxs2sentence(orig_idxs.numpy())))
-            print('Reconstruction: "{}"'.format(sample_sent))
+            print('c = {}'.format(dataset.idx2label(int(c_idx))))
+            print('Sample: "{}"'.format(sample_sent))
             print()
 
 
@@ -167,6 +159,8 @@ if __name__ == '__main__':
     try:
         main()
     except KeyboardInterrupt:
-        save_model()
+        if args.save:
+            save_model()
 
-    save_model()
+    if args.save:
+        save_model()

@@ -21,6 +21,8 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument('--gpu', default=False, action='store_true',
                     help='whether to run in the GPU')
+parser.add_argument('--save', default=False, action='store_true',
+                    help='whether to save model or not')
 
 args = parser.parse_args()
 
@@ -36,8 +38,6 @@ z_dim = h_dim
 c_dim = 2
 
 dataset = SST_Dataset()
-# dataset = WikiText_Dataset()
-# dataset = IMDB_Dataset()
 
 model = RNN_VAE(
     dataset.n_vocab, h_dim, z_dim, c_dim, p_word_dropout=0.3,
@@ -68,24 +68,16 @@ def main():
         trainer.zero_grad()
 
         if it % log_interval == 0:
-            # Reconstruct first sentence in current batch
-            orig_sentence = inputs[:, 0].unsqueeze(1)
-
-            z_mean, z_logvar = model.forward_encoder(orig_sentence)
-            # z = model.sample_z(z_mean, z_logvar)
+            z = model.sample_z_prior(1)
             c = model.sample_c(1)
 
-            sample_idxs = model.sample_sentence(z_mean, c)
+            sample_idxs = model.sample_sentence(z, c)
             sample_sent = dataset.idxs2sentence(sample_idxs)
 
             print('Iter-{}; Loss: {:.4f}; Recon: {:.4f}; KL: {:.4f}; Grad_norm: {:.4f};'
                   .format(it, loss.data[0], recon_loss.data[0], kl_loss.data[0], grad_norm))
 
-            orig_idxs = orig_sentence.squeeze().data
-            orig_idxs = orig_idxs.cpu() if args.gpu else orig_idxs
-
-            print('Original: "{}"'.format(dataset.idxs2sentence(orig_idxs.numpy())))
-            print('Reconstruction: "{}"'.format(sample_sent))
+            print('Sample: "{}"'.format(sample_sent))
             print()
 
         # Anneal learning rate
@@ -105,6 +97,8 @@ if __name__ == '__main__':
     try:
         main()
     except KeyboardInterrupt:
-        save_model()
+        if args.save:
+            save_model()
 
-    save_model()
+    if args.save:
+        save_model()

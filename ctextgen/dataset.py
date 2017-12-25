@@ -47,6 +47,9 @@ class SST_Dataset:
     def idxs2sentence(self, idxs):
         return ' '.join([self.TEXT.vocab.itos[i] for i in idxs])
 
+    def idx2label(self, idx):
+        return self.LABEL.vocab.itos[idx]
+
 
 class IMDB_Dataset:
 
