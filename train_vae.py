@@ -80,7 +80,11 @@ def main():
 
             print('Iter-{}; Loss: {:.4f}; Recon: {:.4f}; KL: {:.4f}; Grad_norm: {:.4f};'
                   .format(it, loss.data[0], recon_loss.data[0], kl_loss.data[0], grad_norm))
-            print('Original: "{}"'.format(dataset.idxs2sentence(orig_sentence.squeeze().data.numpy())))
+
+            orig_idxs = orig_sentence.squeeze().data
+            orig_idxs = orig_idxs.cpu() if args.gpu else orig_idxs
+
+            print('Original: "{}"'.format(dataset.idxs2sentence(orig_idxs.numpy())))
             print('Reconstruction: "{}"'.format(sample_sent))
             print()
 
@@ -90,11 +94,17 @@ def main():
             param_group['lr'] = new_lr
 
 
+def save_model():
+    if not os.path.exists('models/'):
+        os.makedirs('models/')
+
+    torch.save(model.state_dict(), 'models/vae.bin')
+
+
 if __name__ == '__main__':
     try:
         main()
     except KeyboardInterrupt:
-        if not os.path.exists('models/'):
-            os.makedirs('models/')
+        save_model()
 
-        torch.save(model.state_dict(), 'models/vae.bin')
+    save_model()

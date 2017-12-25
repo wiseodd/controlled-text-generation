@@ -129,6 +129,7 @@ class RNN_VAE(nn.Module):
         # enc_inputs: 'I want to fly'
         # dec_targets: 'I want to fly <eos> <pad>'
         pad_words = Variable(torch.LongTensor([self.PAD_IDX])).repeat(1, mbsize)
+        pad_words = pad_words.cuda() if self.gpu else pad_words
 
         enc_inputs = sentence[1:-1, :]
         dec_targets = torch.cat([sentence[1:], pad_words], dim=0)
@@ -167,20 +168,18 @@ class RNN_VAE(nn.Module):
             emb = torch.cat([emb, z], 2)
 
             output, h = self.decoder(emb, h)
-            y = self.decoder_fc(output)
-
-            # Sample next word
-            y = F.softmax(y.view(-1), dim=0)
-            y = y.cpu() if self.gpu else y
-            y = y.data.numpy()
+            y = self.decoder_fc(output).view(-1)
+            y = F.softmax(y, dim=0)
 
             if stochastic:
-                idx = np.random.multinomial(1, y).argmax()
+                idx = torch.multinomial(y)
             else:
-                idx = np.argmax(y)
+                _, idx = torch.max(y, dim=0)
 
             word = Variable(torch.LongTensor([int(idx)]))
             word = word.cuda() if self.gpu else word
+
+            idx = int(idx)
 
             if idx == self.EOS_IDX:
                 break
