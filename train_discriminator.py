@@ -48,26 +48,32 @@ model = RNN_VAE(
 model.load_state_dict(torch.load('models/vae.bin'))
 
 
-def kl_weight(it):
-    """
-    Credit to: https://github.com/kefirski/pytorch_RVAE/
-    """
-    return (math.tanh((it - 3500)/1000) + 1)/2
-
-
 def main():
-    trainer = optim.Adam(model.trainable_parameters(), lr=lr)
+    trainer_D = optim.Adam(model.discriminator_params, lr=lr)
+    trainer_VAE = optim.Adam(model.vae_params, lr=lr)
 
     for it in range(n_iter):
         inputs, labels = dataset.next_batch(args.gpu)
-        # inputs = dataset.next_batch(args.gpu)
 
-        recon_loss, kl_loss = model.forward(inputs)
+        # Update discriminator
+        y_disc = model.forward_discriminator(inputs.transpose(0, 1))
+        x_gen = model
+
+        loss_s = F.cross_entropy(y_disc, labels)
+        loss_u = F
 
         loss = recon_loss + kl_weight(it) * kl_loss
 
         loss.backward()
-        grad_norm = torch.nn.utils.clip_grad_norm(model.trainable_parameters(), 5)
+        grad_norm = torch.nn.utils.clip_grad_norm(model.discriminator_params, 5)
+        trainer.step()
+        trainer.zero_grad()
+
+        recon_loss, kl_loss = model.forward(inputs)
+        vae_loss = recon_loss + kl_loss
+
+        loss.backward()
+        grad_norm = torch.nn.utils.clip_grad_norm(model.discriminator_params, 5)
         trainer.step()
         trainer.zero_grad()
 
@@ -83,7 +89,11 @@ def main():
 
             print('Iter-{}; Loss: {:.4f}; Recon: {:.4f}; KL: {:.4f}; Grad_norm: {:.4f};'
                   .format(it, loss.data[0], recon_loss.data[0], kl_loss.data[0], grad_norm))
-            print('Original: "{}"'.format(dataset.idxs2sentence(orig_sentence.squeeze().data.numpy())))
+
+            orig_idxs = orig_sentence.squeeze().data
+            orig_idxs = orig_idxs.cpu() if args.gpu else orig_idxs
+
+            print('Original: "{}"'.format(dataset.idxs2sentence(orig_idxs.numpy())))
             print('Reconstruction: "{}"'.format(sample_sent))
             print()
 
@@ -93,11 +103,17 @@ def main():
             param_group['lr'] = new_lr
 
 
+def save_model():
+    if not os.path.exists('models/'):
+        os.makedirs('models/')
+
+    torch.save(model.state_dict(), 'models/ctextgen.bin')
+
+
 if __name__ == '__main__':
     try:
         main()
     except KeyboardInterrupt:
-        if not os.path.exists('models/'):
-            os.makedirs('models/')
+        save_model()
 
-        torch.save(model.state_dict(), 'models/model.bin')
+    save_model()

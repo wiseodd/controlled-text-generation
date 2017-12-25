@@ -21,7 +21,7 @@ class SST_Dataset:
 
         self.n_vocab = len(self.TEXT.vocab.itos)
 
-        self.train_iter, _, _ = data.BucketIterator.splits(
+        self.train_iter, self.val_iter, _ = data.BucketIterator.splits(
             (train, val, test), batch_size=mbsize, device=-1
         )
 
@@ -30,6 +30,14 @@ class SST_Dataset:
 
     def next_batch(self, gpu=False):
         batch = next(iter(self.train_iter))
+
+        if gpu:
+            return batch.text.cuda(), batch.label.cuda()
+
+        return batch.text, batch.label
+
+    def next_validation_batch(self, gpu=False):
+        batch = next(iter(self.val_iter))
 
         if gpu:
             return batch.text.cuda(), batch.label.cuda()

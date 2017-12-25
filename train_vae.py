@@ -31,7 +31,7 @@ h_dim = 128
 lr = 1e-3
 lr_decay_every = 1000000
 n_iter = 50000
-log_interval = 200
+log_interval = 1000
 z_dim = h_dim
 
 dataset = SST_Dataset()
@@ -39,7 +39,7 @@ dataset = SST_Dataset()
 # dataset = IMDB_Dataset()
 
 model = RNN_VAE(
-    dataset.n_vocab, h_dim, z_dim, p_word_dropout=0.3,
+    dataset.n_vocab, h_dim, z_dim, 2, p_word_dropout=0.3,
     pretrained_embeddings=dataset.get_vocab_vectors(), freeze_embeddings=False,
     gpu=args.gpu
 )
@@ -53,18 +53,16 @@ def kl_weight(it):
 
 
 def main():
-    trainer = optim.Adam(model.trainable_parameters(), lr=lr)
+    trainer = optim.Adam(model.vae_params, lr=lr)
 
     for it in range(n_iter):
         inputs, labels = dataset.next_batch(args.gpu)
-        # inputs = dataset.next_batch(args.gpu)
 
         recon_loss, kl_loss = model.forward(inputs)
-
         loss = recon_loss + kl_weight(it) * kl_loss
 
         loss.backward()
-        grad_norm = torch.nn.utils.clip_grad_norm(model.trainable_parameters(), 5)
+        grad_norm = torch.nn.utils.clip_grad_norm(model.vae_params, 5)
         trainer.step()
         trainer.zero_grad()
 
@@ -74,8 +72,9 @@ def main():
 
             z_mean, z_logvar = model.forward_encoder(orig_sentence)
             # z = model.sample_z(z_mean, z_logvar)
+            c = model.sample_c(1)
 
-            sample_idxs = model.sample_sentence(z_mean)
+            sample_idxs = model.sample_sentence(z_mean, c)
             sample_sent = dataset.idxs2sentence(sample_idxs)
 
             print('Iter-{}; Loss: {:.4f}; Recon: {:.4f}; KL: {:.4f}; Grad_norm: {:.4f};'
