@@ -55,13 +55,26 @@ model = RNN_VAE(
 model.load_state_dict(torch.load('models/vae.bin'))
 
 
+def kl_weight(it):
+    """
+    Credit to: https://github.com/kefirski/pytorch_RVAE/
+    0 -> 1
+    """
+    return (math.tanh((it - 3500)/1000) + 1)/2
+
+
+def temp(it):
+    """
+    Softmax temperature annealing
+    1 -> 0
+    """
+    return 1-kl_weight(it) + 1e-5  # To avoid overflow
+
+
 def main():
     trainer_D = optim.Adam(model.discriminator_params, lr=lr)
     trainer_G = optim.Adam(model.encoder_params, lr=lr)
     trainer_E = optim.Adam(model.decoder_params, lr=lr)
-
-    # Softmax temperature
-    temp = 1
 
     for it in range(n_iter):
         inputs, labels = dataset.next_batch(args.gpu)
@@ -91,13 +104,13 @@ def main():
         # Forward VAE with c ~ q(c|x) instead of from prior
         recon_loss, kl_loss = model.forward(inputs, use_c_prior=False)
         # x_gen: mbsize x seq_len x emb_dim
-        x_gen_attr, target_z, target_c = model.generate_soft_embed(batch_size, temp=temp)
+        x_gen_attr, target_z, target_c = model.generate_soft_embed(batch_size, temp=temp(it))
 
         # y_z: mbsize x z_dim
         y_z, _ = model.forward_encoder_embed(x_gen_attr.transpose(0, 1))
         y_c = model.forward_discriminator_embed(x_gen_attr)
 
-        loss_vae = recon_loss + kl_loss
+        loss_vae = recon_loss + kl_weight(it) * kl_loss
         loss_attr_c = F.cross_entropy(y_c, target_c)
         loss_attr_z = F.mse_loss(y_z, target_z)
 
@@ -111,7 +124,7 @@ def main():
         """ Update encoder, eq. 4 """
         recon_loss, kl_loss = model.forward(inputs, use_c_prior=False)
 
-        loss_E = recon_loss + kl_loss
+        loss_E = recon_loss + kl_weight(it) * kl_loss
 
         loss_E.backward()
         grad_norm = torch.nn.utils.clip_grad_norm(model.encoder_params, 5)
