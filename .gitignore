@@ -113,3 +113,4 @@ ENV/
 /models
 .vscode
 .data
+.vector_cache
