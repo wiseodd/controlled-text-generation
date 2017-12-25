@@ -69,10 +69,17 @@ class RNN_VAE(nn.Module):
         )
 
         # Group params
-        self.vae_params = chain(
-            self.word_emb.parameters(), self.encoder.parameters(),
-            self.q_mu.parameters(), self.q_logvar.parameters(),
+        self.encoder_params = chain(
+            self.encoder.parameters(), self.q_mu.parameters(),
+            self.q_logvar.parameters()
+        )
+
+        self.decoder_params = chain(
             self.decoder.parameters(), self.decoder_fc.parameters()
+        )
+
+        self.vae_params = chain(
+            self.word_emb.parameters(), self.encoder_params, self.decoder_params
         )
         self.vae_params = filter(lambda p: p.requires_grad, self.vae_params)
 
@@ -86,7 +93,12 @@ class RNN_VAE(nn.Module):
 
     def forward_encoder(self, inputs):
         inputs = self.word_emb(inputs)
+        return self.forward_encoder_embed(inputs)
 
+    def forward_encoder_embed(self, inputs):
+        """
+        Inputs is embeddings of: seq_len x mbsize x emb_dim
+        """
         _, h = self.encoder(inputs, None)
 
         # Forward to latent
@@ -100,6 +112,11 @@ class RNN_VAE(nn.Module):
         eps = Variable(torch.randn(self.z_dim))
         eps = eps.cuda() if self.gpu else eps
         return mu + torch.exp(logvar/2) * eps
+
+    def sample_z_prior(self, mbsize):
+        z = Variable(torch.randn(mbsize, self.z_dim))
+        z = z.cuda() if self.gpu else z
+        return z
 
     def sample_c(self, mbsize):
         # Sample c ~ p(c) = Cat([0.5, 0.5])
@@ -132,7 +149,13 @@ class RNN_VAE(nn.Module):
 
     def forward_discriminator(self, inputs):
         inputs = self.word_emb(inputs)
-        inputs = inputs.unsqueeze(1)
+        return self.forward_discriminator_embed(inputs)
+
+    def forward_discriminator_embed(self, inputs):
+        """
+        Inputs must be: mbsize x seq_len x emb_dim
+        """
+        inputs = inputs.unsqueeze(1)  # mbsize x 1 x seq_len x emb_dim
 
         features = self.cnn(inputs)
         features = features.view(features.size(0), -1)
@@ -141,7 +164,7 @@ class RNN_VAE(nn.Module):
 
         return y
 
-    def forward(self, sentence):
+    def forward(self, sentence, use_c_prior=True):
         """
         Params:
         -------
@@ -168,7 +191,11 @@ class RNN_VAE(nn.Module):
         # Encoder: sentence -> z
         mu, logvar = self.forward_encoder(enc_inputs)
         z = self.sample_z(mu, logvar)
-        c = self.sample_c(mbsize)
+
+        if use_c_prior:
+            c = self.sample_c(mbsize)
+        else:
+            c = self.forward_discriminator(sentence.transpose(0, 1))
 
         # Decoder: sentence -> y
         y = self.forward_decoder(sentence, z, c)
@@ -180,7 +207,19 @@ class RNN_VAE(nn.Module):
 
         return recon_loss, kl_loss
 
-    def sample_sentence(self, z, c, stochastic=True):
+    def generate(self, mbsize):
+        samples = []
+
+        for _ in range(mbsize):
+            z = self.sample_z_prior(1)
+            c = self.sample_c(1)
+            samples.append(self.sample_sentence(z, c, raw=True))
+
+        X_gen = torch.cat(samples, dim=0)
+
+        return X_gen
+
+    def sample_sentence(self, z, c, stochastic=True, raw=False):
         self.eval()
 
         word = torch.LongTensor([self.START_IDX])
@@ -193,6 +232,9 @@ class RNN_VAE(nn.Module):
             h = Variable(h)
 
         outputs = []
+
+        if raw:
+            outputs.append(self.START_IDX)
 
         for i in range(self.MAX_SENT_LEN):
             emb = self.word_emb(word).view(1, 1, -1)
@@ -212,12 +254,71 @@ class RNN_VAE(nn.Module):
 
             idx = int(idx)
 
-            if idx == self.EOS_IDX:
+            if not raw and idx == self.EOS_IDX:
                 break
 
             outputs.append(idx)
 
-        return outputs
+        if raw:
+            outputs = Variable(torch.LongTensor(outputs)).unsqueeze(0)
+            return outputs.cuda() if self.gpu else outputs
+        else:
+            return outputs
+
+    def generate_soft_embed(self, mbsize, temp=1):
+        samples = []
+        targets_c = []
+        targets_z = []
+
+        for _ in range(mbsize):
+            z = self.sample_z_prior(1)
+            c = self.sample_c(1)
+
+            samples.append(self.sample_soft_embed(z, c, temp=1))
+            targets_z.append(z)
+            targets_c.append(c)
+
+        X_gen = torch.cat(samples, dim=0)
+        targets_z = torch.cat(targets_z, dim=0)
+        _, targets_c = torch.cat(targets_c, dim=0).max(dim=1)
+
+        return X_gen, targets_z, targets_c
+
+    def sample_soft_embed(self, z, c, temp=1):
+        self.eval()
+
+        word = torch.LongTensor([self.START_IDX])
+        word = word.cuda() if self.gpu else word
+        word = Variable(word)  # '<start>'
+        emb = self.word_emb(word).view(1, 1, -1)
+        # emb = torch.cat([emb, z], 2)
+
+        h = torch.cat([z.view(1, 1, -1), c.view(1, 1, -1)], dim=2)
+
+        if not isinstance(h, Variable):
+            h = Variable(h)
+
+        outputs = [self.word_emb(word).view(1, -1)]
+
+        for i in range(self.MAX_SENT_LEN):
+            output, h = self.decoder(emb, h)
+            o = self.decoder_fc(output).view(-1)
+
+            # Sample softmax with temperature
+            y = F.softmax(o / temp, dim=0)
+
+            # Take expectation of embedding given output prob -> soft embedding
+            # w * y = n_vocab x emb_dim * n_vocab x 1
+            emb = (self.word_emb.weight * y.unsqueeze(1)).sum(0).view(1, 1, -1)
+
+            assert tuple(emb.size()) == (1, 1, self.emb_dim)
+
+            outputs.append(emb.view(1, -1))
+
+        # 1 x 16 x emb_dim
+        outputs = torch.cat(outputs, dim=0).unsqueeze(0)
+
+        return outputs.cuda() if self.gpu else outputs
 
     def word_dropout(self, inputs):
         if isinstance(inputs, Variable):
