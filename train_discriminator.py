@@ -13,6 +13,7 @@ from ctextgen.dataset import *
 from ctextgen.model import RNN_VAE
 
 import argparse
+from tqdm import tqdm
 
 
 parser = argparse.ArgumentParser(
@@ -28,14 +29,15 @@ args = parser.parse_args()
 
 
 mbsize = 20
-z_dim = 100
-h_dim = 128
-lr = 1e-4
+z_dim = 20
+h_dim = 64
+lr = 1e-3
 lr_decay_every = 1000000
-n_iter = 50000
-log_interval = 50
+n_iter = 5000
+log_interval = 100
 z_dim = h_dim
 c_dim = 2
+kl_weight_max = 0.4
 
 # Specific hyperparams
 beta = 0.1
@@ -43,7 +45,7 @@ lambda_c = 0.1
 lambda_z = 0.1
 lambda_u = 0.1
 
-dataset = SST_Dataset(mbsize)
+dataset = SST_Dataset(mbsize=mbsize)
 
 model = RNN_VAE(
     dataset.n_vocab, h_dim, z_dim, c_dim, p_word_dropout=0.3,
@@ -76,7 +78,7 @@ def main():
     trainer_G = optim.Adam(model.encoder_params, lr=lr)
     trainer_E = optim.Adam(model.decoder_params, lr=lr)
 
-    for it in range(n_iter):
+    for it in tqdm(range(n_iter)):
         inputs, labels = dataset.next_batch(args.gpu)
 
         """ Update discriminator, eq. 11 """
@@ -110,7 +112,7 @@ def main():
         y_z, _ = model.forward_encoder_embed(x_gen_attr.transpose(0, 1))
         y_c = model.forward_discriminator_embed(x_gen_attr)
 
-        loss_vae = recon_loss + kl_weight(it) * kl_loss
+        loss_vae = recon_loss + kl_weight_max * kl_loss
         loss_attr_c = F.cross_entropy(y_c, target_c)
         loss_attr_z = F.mse_loss(y_z, target_z)
 
@@ -124,7 +126,7 @@ def main():
         """ Update encoder, eq. 4 """
         recon_loss, kl_loss = model.forward(inputs, use_c_prior=False)
 
-        loss_E = recon_loss + kl_weight(it) * kl_loss
+        loss_E = recon_loss + kl_weight_max * kl_loss
 
         loss_E.backward()
         grad_norm = torch.nn.utils.clip_grad_norm(model.encoder_params, 5)

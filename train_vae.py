@@ -28,11 +28,11 @@ args = parser.parse_args()
 
 
 mb_size = 32
-z_dim = 100
-h_dim = 128
+z_dim = 20
+h_dim = 64
 lr = 1e-3
 lr_decay_every = 1000000
-n_iter = 50000
+n_iter = 20000
 log_interval = 1000
 z_dim = h_dim
 c_dim = 2
@@ -46,21 +46,24 @@ model = RNN_VAE(
 )
 
 
-def kl_weight(it):
-    """
-    Credit to: https://github.com/kefirski/pytorch_RVAE/
-    """
-    return (math.tanh((it - 3500)/1000) + 1)/2
-
-
 def main():
+    # Annealing for KL term
+    kld_start_inc = 3000
+    kld_weight = 0.01
+    kld_max = 0.15
+    kld_inc = (kld_max - kld_weight) / (n_iter - kld_start_inc)
+
     trainer = optim.Adam(model.vae_params, lr=lr)
 
     for it in range(n_iter):
         inputs, labels = dataset.next_batch(args.gpu)
 
         recon_loss, kl_loss = model.forward(inputs)
-        loss = recon_loss + kl_weight(it) * kl_loss
+        loss = recon_loss + kld_weight * kl_loss
+
+        # Anneal kl_weight
+        if it > kld_start_inc and kld_weight < kld_max:
+            kld_weight += kld_inc
 
         loss.backward()
         grad_norm = torch.nn.utils.clip_grad_norm(model.vae_params, 5)

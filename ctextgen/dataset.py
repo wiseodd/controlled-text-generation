@@ -4,7 +4,7 @@ from torchtext.vocab import GloVe
 
 class SST_Dataset:
 
-    def __init__(self, mbsize=32):
+    def __init__(self, emb_dim=50, mbsize=32):
         self.TEXT = data.Field(init_token='<start>', eos_token='<eos>', lower=True, tokenize='spacy', fix_length=16)
         self.LABEL = data.Field(sequential=False, unk_token=None)
 
@@ -16,13 +16,14 @@ class SST_Dataset:
             filter_pred=f
         )
 
-        self.TEXT.build_vocab(train, vectors=GloVe('6B', dim=100))
+        self.TEXT.build_vocab(train, vectors=GloVe('6B', dim=emb_dim))
         self.LABEL.build_vocab(train)
 
         self.n_vocab = len(self.TEXT.vocab.itos)
+        self.emb_dim = emb_dim
 
         self.train_iter, self.val_iter, _ = data.BucketIterator.splits(
-            (train, val, test), batch_size=mbsize, device=-1
+            (train, val, test), batch_size=mbsize, device=-1, shuffle=True
         )
 
     def get_vocab_vectors(self):
@@ -53,7 +54,7 @@ class SST_Dataset:
 
 class IMDB_Dataset:
 
-    def __init__(self, mbsize=32):
+    def __init__(self, emb_dim=50, mbsize=32):
         self.TEXT = data.Field(init_token='<start>', eos_token='<eos>', lower=True, tokenize='spacy', fix_length=None)
         self.LABEL = data.Field(sequential=False, unk_token=None)
 
@@ -64,13 +65,14 @@ class IMDB_Dataset:
             self.TEXT, self.LABEL, filter_pred=f
         )
 
-        self.TEXT.build_vocab(train, vectors=GloVe('6B', dim=100))
+        self.TEXT.build_vocab(train, vectors=GloVe('6B', dim=emb_dim))
         self.LABEL.build_vocab(train)
 
         self.n_vocab = len(self.TEXT.vocab.itos)
+        self.emb_dim = emb_dim
 
         self.train_iter, _ = data.BucketIterator.splits(
-            (train, test), batch_size=mbsize, device=-1
+            (train, test), batch_size=mbsize, device=-1, shuffle=True
         )
 
     def get_vocab_vectors(self):
@@ -90,16 +92,17 @@ class IMDB_Dataset:
 
 class WikiText_Dataset:
 
-    def __init__(self, mbsize=32):
+    def __init__(self, emb_dim=50, mbsize=32):
         self.TEXT = data.Field(init_token='<start>', eos_token='<eos>', lower=True, tokenize='spacy', fix_length=None)
         self.LABEL = data.Field(sequential=False, unk_token=None)
 
         train, val, test = datasets.WikiText2.splits(self.TEXT)
 
-        self.TEXT.build_vocab(train, vectors=GloVe('6B', dim=100))
+        self.TEXT.build_vocab(train, vectors=GloVe('6B', dim=emb_dim))
         self.LABEL.build_vocab(train)
 
         self.n_vocab = len(self.TEXT.vocab.itos)
+        self.emb_dim = emb_dim
 
         self.train_iter, _, _ = data.BPTTIterator.splits(
             (train, val, test), batch_size=10, bptt_len=15, device=-1

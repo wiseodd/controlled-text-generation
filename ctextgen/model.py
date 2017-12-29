@@ -48,7 +48,7 @@ class RNN_VAE(nn.Module):
         self.q_logvar = nn.Linear(h_dim, z_dim)
 
         # Decoder
-        self.decoder = nn.GRU(self.emb_dim, z_dim+c_dim)
+        self.decoder = nn.GRU(self.emb_dim+z_dim+c_dim, z_dim+c_dim, dropout=0.3)
         self.decoder_fc = nn.Linear(z_dim+c_dim, n_vocab)
 
         # Discriminator
@@ -128,9 +128,8 @@ class RNN_VAE(nn.Module):
 
         # 1 x mbsize x (z_dim+c_dim)
         init_h = torch.cat([z.unsqueeze(0), c.unsqueeze(0)], dim=2)
-
         inputs_emb = self.word_emb(dec_inputs)  # seq_len x mbsize x emb_dim
-        # inputs_emb = torch.cat([inputs_emb, init_h.repeat(seq_len, 1, 1)], 2)
+        inputs_emb = torch.cat([inputs_emb, init_h.repeat(seq_len, 1, 1)], 2)
 
         outputs, _ = self.decoder(inputs_emb, init_h)
         seq_len, mbsize, _ = outputs.size()
@@ -221,14 +220,16 @@ class RNN_VAE(nn.Module):
 
         return X_gen
 
-    def sample_sentence(self, z, c, stochastic=True, raw=False):
+    def sample_sentence(self, z, c, stochastic=True, raw=False, temp=1):
         self.eval()
 
         word = torch.LongTensor([self.START_IDX])
         word = word.cuda() if self.gpu else word
         word = Variable(word)  # '<start>'
 
-        h = torch.cat([z.view(1, 1, -1), c.view(1, 1, -1)], dim=2)
+        z, c = z.view(1, 1, -1), c.view(1, 1, -1)
+
+        h = torch.cat([z, c], dim=2)
 
         if not isinstance(h, Variable):
             h = Variable(h)
@@ -240,11 +241,11 @@ class RNN_VAE(nn.Module):
 
         for i in range(self.MAX_SENT_LEN):
             emb = self.word_emb(word).view(1, 1, -1)
-            # emb = torch.cat([emb, z], 2)
+            emb = torch.cat([emb, z, c], 2)
 
             output, h = self.decoder(emb, h)
             y = self.decoder_fc(output).view(-1)
-            y = F.softmax(y, dim=0)
+            y = F.softmax(y/temp, dim=0)
 
             if stochastic:
                 idx = torch.multinomial(y)
@@ -289,13 +290,15 @@ class RNN_VAE(nn.Module):
     def sample_soft_embed(self, z, c, temp=1):
         self.eval()
 
+        z, c = z.view(1, 1, -1), c.view(1, 1, -1)
+
         word = torch.LongTensor([self.START_IDX])
         word = word.cuda() if self.gpu else word
         word = Variable(word)  # '<start>'
         emb = self.word_emb(word).view(1, 1, -1)
-        # emb = torch.cat([emb, z], 2)
+        emb = torch.cat([emb, z, c], 2)
 
-        h = torch.cat([z.view(1, 1, -1), c.view(1, 1, -1)], dim=2)
+        h = torch.cat([z, c], dim=2)
 
         if not isinstance(h, Variable):
             h = Variable(h)
@@ -313,9 +316,11 @@ class RNN_VAE(nn.Module):
             # w * y = n_vocab x emb_dim * n_vocab x 1
             emb = (self.word_emb.weight * y.unsqueeze(1)).sum(0).view(1, 1, -1)
 
-            assert tuple(emb.size()) == (1, 1, self.emb_dim)
-
+            # Save resulting soft embedding
             outputs.append(emb.view(1, -1))
+
+            # Append with z and c for the next input
+            emb = torch.cat([emb, z, c], 2)
 
         # 1 x 16 x emb_dim
         outputs = torch.cat(outputs, dim=0).unsqueeze(0)
