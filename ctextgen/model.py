@@ -30,7 +30,9 @@ class RNN_VAE(nn.Module):
 
         self.gpu = gpu
 
-        # Embeddings layer
+        """
+        Word embeddings layer
+        """
         if pretrained_embeddings is None:
             self.emb_dim = h_dim
             self.word_emb = nn.Embedding(n_vocab, h_dim)
@@ -44,16 +46,22 @@ class RNN_VAE(nn.Module):
             if freeze_embeddings:
                 self.word_emb.weight.requires_grad = False
 
-        # Encoder
+        """
+        Encoder is GRU with FC layers connected to last hidden unit
+        """
         self.encoder = nn.GRU(self.emb_dim, h_dim)
         self.q_mu = nn.Linear(h_dim, z_dim)
         self.q_logvar = nn.Linear(h_dim, z_dim)
 
-        # Decoder
+        """
+        Decoder is GRU with `z` and `c` appended at its inputs
+        """
         self.decoder = nn.GRU(self.emb_dim+z_dim+c_dim, z_dim+c_dim, dropout=0.3)
         self.decoder_fc = nn.Linear(z_dim+c_dim, n_vocab)
 
-        # Discriminator
+        """
+        Discriminator is CNN as in Kim, 2014
+        """
         self.conv3 = nn.Conv2d(1, 100, (3, self.emb_dim))
         self.conv4 = nn.Conv2d(1, 100, (4, self.emb_dim))
         self.conv5 = nn.Conv2d(1, 100, (5, self.emb_dim))
@@ -67,7 +75,9 @@ class RNN_VAE(nn.Module):
             self.conv3, self.conv4, self.conv5, self.disc_fc
         ])
 
-        # Group params
+        """
+        Grouping the model's parameters: separating encoder, decoder, and discriminator
+        """
         self.encoder_params = chain(
             self.encoder.parameters(), self.q_mu.parameters(),
             self.q_logvar.parameters()
@@ -84,10 +94,16 @@ class RNN_VAE(nn.Module):
 
         self.discriminator_params = filter(lambda p: p.requires_grad, self.discriminator.parameters())
 
+        """
+        Use GPU if set
+        """
         if self.gpu:
             self.cuda()
 
     def forward_encoder(self, inputs):
+        """
+        Inputs is batch of sentences: seq_len x mbsize
+        """
         inputs = self.word_emb(inputs)
         return self.forward_encoder_embed(inputs)
 
@@ -105,17 +121,25 @@ class RNN_VAE(nn.Module):
         return mu, logvar
 
     def sample_z(self, mu, logvar):
+        """
+        Reparameterization trick: z = mu + std*eps; eps ~ N(0, I)
+        """
         eps = Variable(torch.randn(self.z_dim))
         eps = eps.cuda() if self.gpu else eps
         return mu + torch.exp(logvar/2) * eps
 
     def sample_z_prior(self, mbsize):
+        """
+        Sample z ~ p(z) = N(0, I)
+        """
         z = Variable(torch.randn(mbsize, self.z_dim))
         z = z.cuda() if self.gpu else z
         return z
 
     def sample_c_prior(self, mbsize):
-        # Sample c ~ p(c) = Cat([0.5, 0.5])
+        """
+        Sample c ~ p(c) = Cat([0.5, 0.5])
+        """
         c = Variable(
             torch.from_numpy(np.random.multinomial(1, [0.5, 0.5], mbsize).astype('float32'))
         )
@@ -123,6 +147,9 @@ class RNN_VAE(nn.Module):
         return c
 
     def forward_decoder(self, inputs, z, c):
+        """
+        Inputs must be embeddings: seq_len x mbsize
+        """
         dec_inputs = self.word_dropout(inputs)
 
         # Forward
@@ -143,12 +170,15 @@ class RNN_VAE(nn.Module):
         return y
 
     def forward_discriminator(self, inputs):
+        """
+        Inputs is batch of sentences: mbsize x seq_len
+        """
         inputs = self.word_emb(inputs)
         return self.forward_discriminator_embed(inputs)
 
     def forward_discriminator_embed(self, inputs):
         """
-        Inputs must be: mbsize x seq_len x emb_dim
+        Inputs must be embeddings: mbsize x seq_len x emb_dim
         """
         inputs = inputs.unsqueeze(1)  # mbsize x 1 x seq_len x emb_dim
 
@@ -172,6 +202,7 @@ class RNN_VAE(nn.Module):
         Params:
         -------
         sentence: sequence of word indices.
+        use_c_prior: whether to sample `c` from prior or from `discriminator`.
 
         Returns:
         --------
@@ -211,6 +242,9 @@ class RNN_VAE(nn.Module):
         return recon_loss, kl_loss
 
     def generate_sentences(self, mbsize):
+        """
+        Generate sentences of (mbsize x max_sent_len)
+        """
         samples = []
 
         for _ in range(mbsize):
@@ -223,6 +257,12 @@ class RNN_VAE(nn.Module):
         return X_gen
 
     def sample_sentence(self, z, c, raw=False, temp=1):
+        """
+        Sample single sentence from p(x|z,c) according to given temperature.
+        `raw = True` means this returns sentence as in dataset which is useful
+        to train discriminator. `False` means that this will return list of
+        `word_idx` which is useful for evaluation.
+        """
         self.eval()
 
         word = torch.LongTensor([self.START_IDX])
@@ -271,6 +311,10 @@ class RNN_VAE(nn.Module):
             return outputs
 
     def generate_soft_embed(self, mbsize, temp=1):
+        """
+        Generate soft embeddings of (mbsize x emb_dim) along with target z
+        and c for each row (mbsize x {z_dim, c_dim})
+        """
         samples = []
         targets_c = []
         targets_z = []
@@ -290,6 +334,11 @@ class RNN_VAE(nn.Module):
         return X_gen, targets_z, targets_c
 
     def sample_soft_embed(self, z, c, temp=1):
+        """
+        Sample single soft embedded sentence from p(x|z,c) and temperature.
+        Soft embeddings are calculated as weighted average of word_emb
+        according to p(x|z,c).
+        """
         self.eval()
 
         z, c = z.view(1, 1, -1), c.view(1, 1, -1)
@@ -333,6 +382,9 @@ class RNN_VAE(nn.Module):
         return outputs.cuda() if self.gpu else outputs
 
     def word_dropout(self, inputs):
+        """
+        Do word dropout: with prob `p_word_dropout`, set the word to '<unk>'.
+        """
         if isinstance(inputs, Variable):
             data = inputs.data.clone()
         else:
