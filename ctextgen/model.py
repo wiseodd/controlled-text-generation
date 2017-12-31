@@ -8,7 +8,9 @@ from itertools import chain
 
 class RNN_VAE(nn.Module):
     """
-    Hu, Zhiting, et al. "Toward controlled generation of text." ICML. 2017.
+    1. Hu, Zhiting, et al. "Toward controlled generation of text." ICML. 2017.
+    2. Bowman, Samuel R., et al. "Generating sentences from a continuous space." arXiv preprint arXiv:1511.06349 (2015).
+    3. Kim, Yoon. "Convolutional neural networks for sentence classification." arXiv preprint arXiv:1408.5882 (2014).
     """
 
     def __init__(self, n_vocab, h_dim, z_dim, c_dim, p_word_dropout=0.3, unk_idx=0, pad_idx=1, start_idx=2, eos_idx=3, max_sent_len=15, pretrained_embeddings=None, freeze_embeddings=False, gpu=False):
