@@ -57,13 +57,13 @@ else:
 
 # Samples latent and conditional codes randomly from prior
 z = model.sample_z_prior(1)
-c = model.sample_c(1)
+c = model.sample_c_prior(1)
 
 # Generate positive sample given z
 c[0, 0], c[0, 1] = 1, 0
 
 _, c_idx = torch.max(c, dim=1)
-sample_idxs = model.sample_sentence(z, c, stochastic=True, temp=0.1)
+sample_idxs = model.sample_sentence(z, c, temp=0.1)
 
 print('\nSentiment: {}'.format(dataset.idx2label(int(c_idx))))
 print('Generated: {}'.format(dataset.idxs2sentence(sample_idxs)))
@@ -72,7 +72,7 @@ print('Generated: {}'.format(dataset.idxs2sentence(sample_idxs)))
 c[0, 0], c[0, 1] = 0, 1
 
 _, c_idx = torch.max(c, dim=1)
-sample_idxs = model.sample_sentence(z, c, stochastic=True, temp=0.8)
+sample_idxs = model.sample_sentence(z, c, temp=0.8)
 
 print('\nSentiment: {}'.format(dataset.idx2label(int(c_idx))))
 print('Generated: {}'.format(dataset.idxs2sentence(sample_idxs)))
@@ -80,7 +80,7 @@ print('Generated: {}'.format(dataset.idxs2sentence(sample_idxs)))
 print()
 
 # Interpolation
-c = model.sample_c(1)
+c = model.sample_c_prior(1)
 
 z1 = model.sample_z_prior(1).view(1, 1, z_dim)
 z1 = z1.cuda() if args.gpu else z1
@@ -97,7 +97,7 @@ print('-------------------')
 for alpha in alphas:
     z = float(1-alpha)*z1 + float(alpha)*z2
 
-    sample_idxs = model.sample_sentence(z, c, stochastic=True, temp=0.1)
+    sample_idxs = model.sample_sentence(z, c, temp=0.1)
     sample_sent = dataset.idxs2sentence(sample_idxs)
 
     print("{}".format(sample_sent))

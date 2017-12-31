@@ -84,7 +84,7 @@ def main():
         """ Update discriminator, eq. 11 """
         batch_size = inputs.size(1)
 
-        x_gen = model.generate(batch_size)  # mbsize x 16
+        x_gen = model.generate_sentences(batch_size)  # mbsize x 16
 
         y_disc_real = model.forward_discriminator(inputs.transpose(0, 1))
         y_disc_fake = model.forward_discriminator(x_gen)
@@ -135,7 +135,7 @@ def main():
 
         if it % log_interval == 0:
             z = model.sample_z_prior(1)
-            c = model.sample_c(1)
+            c = model.sample_c_prior(1)
 
             sample_idxs = model.sample_sentence(z, c)
             sample_sent = dataset.idxs2sentence(sample_idxs)

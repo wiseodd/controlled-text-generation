@@ -114,7 +114,7 @@ class RNN_VAE(nn.Module):
         z = z.cuda() if self.gpu else z
         return z
 
-    def sample_c(self, mbsize):
+    def sample_c_prior(self, mbsize):
         # Sample c ~ p(c) = Cat([0.5, 0.5])
         c = Variable(
             torch.from_numpy(np.random.multinomial(1, [0.5, 0.5], mbsize).astype('float32'))
@@ -196,7 +196,7 @@ class RNN_VAE(nn.Module):
         z = self.sample_z(mu, logvar)
 
         if use_c_prior:
-            c = self.sample_c(mbsize)
+            c = self.sample_c_prior(mbsize)
         else:
             c = self.forward_discriminator(sentence.transpose(0, 1))
 
@@ -210,19 +210,19 @@ class RNN_VAE(nn.Module):
 
         return recon_loss, kl_loss
 
-    def generate(self, mbsize):
+    def generate_sentences(self, mbsize):
         samples = []
 
         for _ in range(mbsize):
             z = self.sample_z_prior(1)
-            c = self.sample_c(1)
+            c = self.sample_c_prior(1)
             samples.append(self.sample_sentence(z, c, raw=True))
 
         X_gen = torch.cat(samples, dim=0)
 
         return X_gen
 
-    def sample_sentence(self, z, c, stochastic=True, raw=False, temp=1):
+    def sample_sentence(self, z, c, raw=False, temp=1):
         self.eval()
 
         word = torch.LongTensor([self.START_IDX])
@@ -249,10 +249,7 @@ class RNN_VAE(nn.Module):
             y = self.decoder_fc(output).view(-1)
             y = F.softmax(y/temp, dim=0)
 
-            if stochastic:
-                idx = torch.multinomial(y)
-            else:
-                _, idx = torch.max(y, dim=0)
+            idx = torch.multinomial(y)
 
             word = Variable(torch.LongTensor([int(idx)]))
             word = word.cuda() if self.gpu else word
@@ -263,6 +260,9 @@ class RNN_VAE(nn.Module):
                 break
 
             outputs.append(idx)
+
+        # Back to default state: train
+        self.train()
 
         if raw:
             outputs = Variable(torch.LongTensor(outputs)).unsqueeze(0)
@@ -277,7 +277,7 @@ class RNN_VAE(nn.Module):
 
         for _ in range(mbsize):
             z = self.sample_z_prior(1)
-            c = self.sample_c(1)
+            c = self.sample_c_prior(1)
 
             samples.append(self.sample_soft_embed(z, c, temp=1))
             targets_z.append(z)
@@ -326,6 +326,9 @@ class RNN_VAE(nn.Module):
 
         # 1 x 16 x emb_dim
         outputs = torch.cat(outputs, dim=0).unsqueeze(0)
+
+        # Back to default state: train
+        self.train()
 
         return outputs.cuda() if self.gpu else outputs
 

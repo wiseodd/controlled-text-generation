@@ -72,7 +72,7 @@ def main():
 
         if it % log_interval == 0:
             z = model.sample_z_prior(1)
-            c = model.sample_c(1)
+            c = model.sample_c_prior(1)
 
             sample_idxs = model.sample_sentence(z, c)
             sample_sent = dataset.idxs2sentence(sample_idxs)
