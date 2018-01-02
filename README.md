@@ -14,8 +14,8 @@ This work is for University of Bonn's NLP Lab project on Winter Semester 2017/20
 
 ## Difference compared to the paper
 1. Only conditions the model with sentiment, i.e. no tense conditioning.
-2. Entirely using SST dataset, which has only ~2800 sentences (after filtering). This might not be enough and leads to overfitting. The base VAE in the original model by Hu, 2017 [1] is trained using larger dataset first.
-3. Obviously most the hyperparameters values are different.
+2. Entirely using SST dataset, which has only ~2800 sentences after filtering. This might not be enough and leads to overfitting. The base VAE in the original model by Hu, 2017 [1] is trained using larger dataset first.
+3. Obviously most of the hyperparameters values are different.
 
 ## References
 1. Hu, Zhiting, et al. "Toward controlled generation of text." International Conference on Machine Learning. 2017. [[pdf](http://proceedings.mlr.press/v70/hu17e/hu17e.pdf)]
