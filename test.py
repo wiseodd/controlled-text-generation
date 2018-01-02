@@ -22,8 +22,6 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument('--gpu', default=False, action='store_true',
                     help='whether to run in the GPU')
-parser.add_argument('--sentiment', default='positive', metavar='',
-                    help='choose the generated sentiment: {`positive`, `negative`}, (default: `positive`)')
 parser.add_argument('--model', default='ctextgen', metavar='',
                     help='choose the model: {`vae`, `ctextgen`}, (default: `ctextgen`)')
 
