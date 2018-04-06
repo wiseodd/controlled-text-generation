@@ -35,10 +35,10 @@ class RNN_VAE(nn.Module):
         """
         if pretrained_embeddings is None:
             self.emb_dim = h_dim
-            self.word_emb = nn.Embedding(n_vocab, h_dim)
+            self.word_emb = nn.Embedding(n_vocab, h_dim, self.PAD_IDX)
         else:
             self.emb_dim = pretrained_embeddings.size(1)
-            self.word_emb = nn.Embedding(n_vocab, self.emb_dim)
+            self.word_emb = nn.Embedding(n_vocab, self.emb_dim, self.PAD_IDX)
 
             # Set pretrained embeddings
             self.word_emb.weight.data.copy_(pretrained_embeddings)
@@ -214,12 +214,14 @@ class RNN_VAE(nn.Module):
         mbsize = sentence.size(1)
 
         # sentence: '<start> I want to fly <eos>'
-        # enc_inputs: 'I want to fly'
+        # enc_inputs: '<start> I want to fly <eos>'
+        # dec_inputs: '<start> I want to fly <eos>'
         # dec_targets: 'I want to fly <eos> <pad>'
         pad_words = Variable(torch.LongTensor([self.PAD_IDX])).repeat(1, mbsize)
         pad_words = pad_words.cuda() if self.gpu else pad_words
 
-        enc_inputs = sentence[1:-1, :]
+        enc_inputs = sentence
+        dec_inputs = sentence
         dec_targets = torch.cat([sentence[1:], pad_words], dim=0)
 
         # Encoder: sentence -> z
@@ -232,7 +234,7 @@ class RNN_VAE(nn.Module):
             c = self.forward_discriminator(sentence.transpose(0, 1))
 
         # Decoder: sentence -> y
-        y = self.forward_decoder(sentence, z, c)
+        y = self.forward_decoder(dec_inputs, z, c)
 
         recon_loss = F.cross_entropy(
             y.view(-1, self.n_vocab), dec_targets.view(-1), size_average=True
@@ -364,8 +366,9 @@ class RNN_VAE(nn.Module):
             y = F.softmax(o / temp, dim=0)
 
             # Take expectation of embedding given output prob -> soft embedding
-            # w * y = n_vocab x emb_dim * n_vocab x 1
-            emb = (self.word_emb.weight * y.unsqueeze(1)).sum(0).view(1, 1, -1)
+            # <y, w> = 1 x n_vocab * n_vocab x emb_dim
+            emb = y.unsqueeze(0) @ self.word_emb.weight
+            emb = emb.view(1, 1, -1)
 
             # Save resulting soft embedding
             outputs.append(emb.view(1, -1))
