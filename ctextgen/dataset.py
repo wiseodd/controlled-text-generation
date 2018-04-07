@@ -23,14 +23,17 @@ class SST_Dataset:
         self.emb_dim = emb_dim
 
         self.train_iter, self.val_iter, _ = data.BucketIterator.splits(
-            (train, val, test), batch_size=mbsize, device=-1, shuffle=True
+            (train, val, test), batch_size=mbsize, device=-1,
+            shuffle=True, repeat=True
         )
+        self.train_iter = iter(self.train_iter)
+        self.val_iter = iter(self.val_iter)
 
     def get_vocab_vectors(self):
         return self.TEXT.vocab.vectors
 
     def next_batch(self, gpu=False):
-        batch = next(iter(self.train_iter))
+        batch = next(self.train_iter)
 
         if gpu:
             return batch.text.cuda(), batch.label.cuda()
@@ -38,7 +41,7 @@ class SST_Dataset:
         return batch.text, batch.label
 
     def next_validation_batch(self, gpu=False):
-        batch = next(iter(self.val_iter))
+        batch = next(self.val_iter)
 
         if gpu:
             return batch.text.cuda(), batch.label.cuda()
@@ -50,70 +53,3 @@ class SST_Dataset:
 
     def idx2label(self, idx):
         return self.LABEL.vocab.itos[idx]
-
-
-class IMDB_Dataset:
-
-    def __init__(self, emb_dim=50, mbsize=32):
-        self.TEXT = data.Field(init_token='<start>', eos_token='<eos>', lower=True, tokenize='spacy', fix_length=None)
-        self.LABEL = data.Field(sequential=False, unk_token=None)
-
-        # Only take sentences with length <= 15
-        f = lambda ex: len(ex.text) <= 15
-
-        train, test = datasets.IMDB.splits(
-            self.TEXT, self.LABEL, filter_pred=f
-        )
-
-        self.TEXT.build_vocab(train, vectors=GloVe('6B', dim=emb_dim))
-        self.LABEL.build_vocab(train)
-
-        self.n_vocab = len(self.TEXT.vocab.itos)
-        self.emb_dim = emb_dim
-
-        self.train_iter, _ = data.BucketIterator.splits(
-            (train, test), batch_size=mbsize, device=-1, shuffle=True
-        )
-
-    def get_vocab_vectors(self):
-        return self.TEXT.vocab.vectors
-
-    def next_batch(self, gpu=False):
-        batch = next(iter(self.train_iter))
-
-        if gpu:
-            return batch.text.cuda(), batch.label.cuda()
-
-        return batch.text, batch.label
-
-    def idxs2sentence(self, idxs):
-        return ' '.join([self.TEXT.vocab.itos[i] for i in idxs])
-
-
-class WikiText_Dataset:
-
-    def __init__(self, emb_dim=50, mbsize=32):
-        self.TEXT = data.Field(init_token='<start>', eos_token='<eos>', lower=True, tokenize='spacy', fix_length=None)
-        self.LABEL = data.Field(sequential=False, unk_token=None)
-
-        train, val, test = datasets.WikiText2.splits(self.TEXT)
-
-        self.TEXT.build_vocab(train, vectors=GloVe('6B', dim=emb_dim))
-        self.LABEL.build_vocab(train)
-
-        self.n_vocab = len(self.TEXT.vocab.itos)
-        self.emb_dim = emb_dim
-
-        self.train_iter, _, _ = data.BPTTIterator.splits(
-            (train, val, test), batch_size=10, bptt_len=15, device=-1
-        )
-
-    def get_vocab_vectors(self):
-        return self.TEXT.vocab.vectors
-
-    def next_batch(self, gpu=False):
-        batch = next(iter(self.train_iter))
-        return batch.text.cuda() if gpu else batch.text
-
-    def idxs2sentence(self, idxs):
-        return ' '.join([self.TEXT.vocab.itos[i] for i in idxs])
