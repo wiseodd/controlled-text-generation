@@ -245,7 +245,7 @@ class RNN_VAE(nn.Module):
 
     def generate_sentences(self, batch_size):
         """
-        Generate sentences and corespponding z of (batch_size x max_sent_len)
+        Generate sentences and corresponding z of (batch_size x max_sent_len)
         """
         samples = []
         cs = []
