@@ -75,8 +75,8 @@ def temp(it):
 
 def main():
     trainer_D = optim.Adam(model.discriminator_params, lr=lr)
-    trainer_G = optim.Adam(model.encoder_params, lr=lr)
-    trainer_E = optim.Adam(model.decoder_params, lr=lr)
+    trainer_G = optim.Adam(model.decoder_params, lr=lr)
+    trainer_E = optim.Adam(model.encoder_params, lr=lr)
 
     for it in tqdm(range(n_iter)):
         inputs, labels = dataset.next_batch(args.gpu)
