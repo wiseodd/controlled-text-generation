@@ -83,7 +83,7 @@ def main():
 
         """ Update discriminator, eq. 11 """
         batch_size = inputs.size(1)
-        # get sentences and coresponding z
+        # get sentences and corresponding z
         x_gen, c_gen  = model.generate_sentences(batch_size)  # mbsize x 16
 
         y_disc_real = model.forward_discriminator(inputs.transpose(0, 1))
