@@ -243,20 +243,20 @@ class RNN_VAE(nn.Module):
 
         return recon_loss, kl_loss
 
-    def generate_sentences(self, mbsize):
+    def generate_sentences(self, batch_size):
         """
-        Generate sentences of (mbsize x max_sent_len)
+        Generate sentences and corresponding z of (batch_size x max_sent_len)
         """
         samples = []
-
-        for _ in range(mbsize):
+        cs = []
+        for _ in range(batch_size):
             z = self.sample_z_prior(1)
             c = self.sample_c_prior(1)
             samples.append(self.sample_sentence(z, c, raw=True))
-
+            cs.append(c.long())
         X_gen = torch.cat(samples, dim=0)
-
-        return X_gen
+        c_gen = torch.cat(cs, dim=0)
+        return X_gen, c_gen
 
     def sample_sentence(self, z, c, raw=False, temp=1):
         """

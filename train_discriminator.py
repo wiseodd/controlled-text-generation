@@ -83,8 +83,8 @@ def main():
 
         """ Update discriminator, eq. 11 """
         batch_size = inputs.size(1)
-
-        x_gen = model.generate_sentences(batch_size)  # mbsize x 16
+        # get sentences and corresponding z
+        x_gen, c_gen  = model.generate_sentences(batch_size)  # mbsize x 16
 
         y_disc_real = model.forward_discriminator(inputs.transpose(0, 1))
         y_disc_fake = model.forward_discriminator(x_gen)
@@ -93,7 +93,9 @@ def main():
         entropy = -log_y_disc_fake.mean()
 
         loss_s = F.cross_entropy(y_disc_real, labels)
-        loss_u = F.cross_entropy(y_disc_fake, labels) + beta*entropy
+        # eq. 10 
+        target_c = torch.argmax(c_gen, dim=1)
+        loss_u = F.cross_entropy(y_disc_fake, target_c) + beta*entropy
 
         loss_D = loss_s + lambda_u*loss_u
 
