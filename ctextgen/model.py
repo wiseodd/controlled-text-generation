@@ -249,13 +249,16 @@ class RNN_VAE(nn.Module):
         """
         samples = []
         cs = []
+
         for _ in range(batch_size):
             z = self.sample_z_prior(1)
             c = self.sample_c_prior(1)
             samples.append(self.sample_sentence(z, c, raw=True))
             cs.append(c.long())
+
         X_gen = torch.cat(samples, dim=0)
         c_gen = torch.cat(cs, dim=0)
+
         return X_gen, c_gen
 
     def sample_sentence(self, z, c, raw=False, temp=1):
