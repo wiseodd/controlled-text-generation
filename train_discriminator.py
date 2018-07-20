@@ -85,7 +85,7 @@ def main():
         batch_size = inputs.size(1)
         # get sentences and corresponding z
         x_gen, c_gen  = model.generate_sentences(batch_size)
-        target_c = torch.argmax(c_gen, dim=1)
+        _, target_c = torch.max(c_gen, dim=1)
 
         y_disc_real = model.forward_discriminator(inputs.transpose(0, 1))
         y_disc_fake = model.forward_discriminator(x_gen)
